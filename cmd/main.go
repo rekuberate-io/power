@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"time"
 
 	"github.com/rekuberate-io/power/pkg/readers"
 
@@ -39,20 +40,32 @@ func main() {
 	// 	fmt.Println(cpuInfo)
 	// }
 
-	totalCores, totalPackages, lenPackages, err := readers.DetectPackages()
+	// totalCores, totalPackages, lenPackages, err := readers.DetectPackages()
+	// if err != nil {
+	// 	fmt.Println(err)
+	// }
+
+	// fmt.Printf("tc: %d, tp: %d, lp: %d \n", totalCores, totalPackages, lenPackages)
+
+	raplReader, err := readers.NewRaplReader(readers.Intel_Rapl)
 	if err != nil {
 		fmt.Println(err)
 	}
 
-	fmt.Printf("tc: %d, tp: %d, lp: %d \n", totalCores, totalPackages, lenPackages)
+	endAt := time.Now().UTC().Add(time.Duration(*duration) * time.Second)
 
-	raplReader, err := readers.NewRaplReader(readers.MSR)
-	if err != nil {
-		fmt.Println(err)
+	for endAt.After(time.Now().UTC()) {
+		klog.Infoln("measuring RAPL...")
+		measurements, _ := raplReader.Read()
+
+		for k, v := range measurements {
+			fmt.Printf("%-10s %30v\n", k, v)
+		}
+
+		fmt.Println()
+
+		time.Sleep(time.Duration(*interval) * time.Second)
 	}
-
-	fmt.Println(raplReader.Available())
-
 }
 
 func exit() {

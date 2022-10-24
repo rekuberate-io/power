@@ -25,7 +25,6 @@ func (c *CpuInfo) String() string {
 }
 
 func DetectCpu() ([]*CpuInfo, error) {
-	// cpuInfoCollection := make([]*CpuInfo, 0)
 	cpuInfoCollection := []*CpuInfo{}
 
 	var cpuInfo *CpuInfo
@@ -74,25 +73,21 @@ func DetectCpu() ([]*CpuInfo, error) {
 	return cpuInfoCollection, nil
 }
 
-func DetectPackages() (int, int, int, error) {
-	packages := map[int]bool{}
-	var totalCores, totalPackages int = 0, 0
+func DetectPackages() (totalCores int, packages map[int64]bool, err error) {
+	packages = map[int64]bool{}
+	totalCores = 0
 
 	cpuInfoCollection, err := DetectCpu()
 	if err != nil {
-		return -1, -1 , len(packages), err
+		return -1, nil, err
 	}
 
 	for cpuInfoIdx := 0; cpuInfoIdx < len(cpuInfoCollection); cpuInfoIdx++ {
 		physicalPackageIdPath := fmt.Sprintf(physicalPackageIdPath, cpuInfoIdx)
-		contents, err := os.ReadFile(physicalPackageIdPath)
-		if err != nil {
-			break
-		}
-		packageId, err := strconv.Atoi(strings.TrimSpace(string(contents)))
+		packageId, err := ReadIntFromFile(physicalPackageIdPath)
 		if err == nil {
 			if _, exists := packages[packageId]; !exists {
-				totalPackages++
+				// totalPackages++
 				packages[packageId] = true
 			}
 		}
@@ -100,5 +95,5 @@ func DetectPackages() (int, int, int, error) {
 		totalCores++
 	}
 
-	return totalCores, totalPackages, len(packages), err
+	return totalCores, packages, err
 }

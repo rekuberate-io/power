@@ -10,5 +10,9 @@ type MsrReader struct {
 }
 
 func (r *MsrReader) Available() bool {
-	return fileExists(fmt.Sprintf(msrPath, 0))
+	return FileExists(fmt.Sprintf(msrPath, 0))
+}
+
+func (r *MsrReader) Read() (map[string]uint64, error) {
+	return nil, nil
 }

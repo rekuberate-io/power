@@ -2,53 +2,52 @@ package readers
 
 import "fmt"
 
-const (
-	packageNamePath = "/sys/class/powercap/intel-rapl/intel-rapl:%d/"
-)
-
 type RaplReaderStrategy int
 
 const (
-	FirstAvailable RaplReaderStrategy = iota
-	Powercap
-	PerfEvent
-	MSR
+	First_Available RaplReaderStrategy = iota
+	Intel_Rapl // Reading the files under /sys/class/powercap/intel-rapl/intel-rapl:0 using the powercap interface. This requires no special permissions, and was introduced in Linux 3.13
+	Perf_Event // Using the perf_event interface with Linux 3.14 or newer. This requires root or a paranoid less than 1 (as do all system wide measurements with -a) sudo perf stat -a -e "power/energy-cores/" /bin/ls Available events can be found via perf list or under/sys/bus/event_source/devices/power/events/
+	Raw_Access // Using raw-access to the underlying MSRs under /dev/msr. This requires root.
 )
+
+var raplDomains [5]string = [5]string{"energy-cores", "energy-gpu", "energy-pkg", "energy-ram", "energy-psys"}
 
 type RaplReader interface {
 	Available() bool
+	Read() (map[string]uint64, error)
 }
 
 func NewRaplReader(forceRaplReaderStrategyIfAvailable RaplReaderStrategy) (RaplReader, error) {
-	powercapReader := &PowercapReader{}
+	intelRaplReader := &IntelRapl{}
 	perfEventReader := &PerfEventReader{}
 	msrReader := &MsrReader{}
 
 	switch forceRaplReaderStrategyIfAvailable {
-    case Powercap:
-        if powercapReader.Available() {
-			return powercapReader, nil
+	case Intel_Rapl:
+		if intelRaplReader.Available() {
+			return intelRaplReader, nil
 		}
-    case PerfEvent:
-        if perfEventReader.Available() {
+	case Perf_Event:
+		if perfEventReader.Available() {
 			return perfEventReader, nil
-		} 
-	case MSR:
-        if msrReader.Available() {
+		}
+	case Raw_Access:
+		if msrReader.Available() {
 			return msrReader, nil
 		}
-	case FirstAvailable:
-        if powercapReader.Available() {
-			return powercapReader, nil
+	case First_Available:
+		if intelRaplReader.Available() {
+			return intelRaplReader, nil
 		} else if perfEventReader.Available() {
 			return perfEventReader, nil
 		} else if msrReader.Available() {
 			return msrReader, nil
 		}
-    }
+	}
 
-	if powercapReader.Available() {
-		return powercapReader, nil
+	if intelRaplReader.Available() {
+		return intelRaplReader, nil
 	} else if perfEventReader.Available() {
 		return perfEventReader, nil
 	} else if msrReader.Available() {
