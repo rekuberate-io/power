@@ -21,48 +21,25 @@ func main() {
 	klog.InitFlags(nil)
 	flag.Parse()
 
-	klog.Infoln(fmt.Sprintf("starting power measuring session { duration: %dsec, interval: %dsec }", *duration, *interval))
-
-	// endAt := time.Now().UTC().Add(time.Duration(*duration) * time.Second)
-
-	// for endAt.After(time.Now().UTC()) {
-	// 	// klog.Infoln("measuring RAPL...")
-	// 	_, err := readers.DetectCpu()
-	// 	if err != nil {
-	// 		fmt.Println(err)
-	// 	}
-
-	// 	time.Sleep(time.Duration(*interval) * time.Second)
-	// }
-
-	// cpuInfoCollection, _ := readers.DetectCpu()
-	// for _, cpuInfo := range cpuInfoCollection {
-	// 	fmt.Println(cpuInfo)
-	// }
-
-	// totalCores, totalPackages, lenPackages, err := readers.DetectPackages()
-	// if err != nil {
-	// 	fmt.Println(err)
-	// }
-
-	// fmt.Printf("tc: %d, tp: %d, lp: %d \n", totalCores, totalPackages, lenPackages)
+	klog.Infoln(fmt.Sprintf("starting rapl measuring session { duration: %dsec, interval: %dsec }", *duration, *interval))
 
 	raplReader, err := readers.NewRaplReader(readers.Intel_Rapl)
 	if err != nil {
-		fmt.Println(err)
+		klog.Errorln(err)
 	}
 
 	endAt := time.Now().UTC().Add(time.Duration(*duration) * time.Second)
 
 	for endAt.After(time.Now().UTC()) {
-		klog.Infoln("measuring RAPL...")
-		measurements, _ := raplReader.Read()
-
-		for k, v := range measurements {
-			fmt.Printf("%-10s %30v\n", k, v)
+		klog.Infof("measuring...")
+		measurements, err := raplReader.Read()
+		if err != nil {
+			klog.Errorln(err)
 		}
 
-		fmt.Println()
+		for k, v := range measurements {
+			klog.Infof("%-10s %30v\n", k, v)
+		}
 
 		time.Sleep(time.Duration(*interval) * time.Second)
 	}
@@ -70,6 +47,6 @@ func main() {
 
 func exit() {
 	exitCode := 10
-	klog.Infoln("exiting power measuring session")
+	klog.Infoln("exiting rapl measuring session")
 	klog.FlushAndExit(klog.ExitFlushTimeout, exitCode)
 }

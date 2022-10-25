@@ -1,17 +1,38 @@
 package readers
 
-import "fmt"
+import (
+	"fmt"
+
+	"k8s.io/klog/v2"
+)
 
 type RaplReaderStrategy int
 
 const (
 	First_Available RaplReaderStrategy = iota
-	Intel_Rapl // Reading the files under /sys/class/powercap/intel-rapl/intel-rapl:0 using the powercap interface. This requires no special permissions, and was introduced in Linux 3.13
-	Perf_Event // Using the perf_event interface with Linux 3.14 or newer. This requires root or a paranoid less than 1 (as do all system wide measurements with -a) sudo perf stat -a -e "power/energy-cores/" /bin/ls Available events can be found via perf list or under/sys/bus/event_source/devices/power/events/
-	Raw_Access // Using raw-access to the underlying MSRs under /dev/msr. This requires root.
+	Intel_Rapl                         // Reading the files under /sys/class/powercap/intel-rapl/intel-rapl:0 using the powercap interface. This requires no special permissions, and was introduced in Linux 3.13
+	Perf_Event                         // Using the perf_event interface with Linux 3.14 or newer. This requires root or a paranoid less than 1 (as do all system wide measurements with -a) sudo perf stat -a -e "power/energy-cores/" /bin/ls Available events can be found via perf list or under/sys/bus/event_source/devices/power/events/
+	Raw_Access                         // Using raw-access to the underlying MSRs under /dev/msr. This requires root.
 )
 
-var raplDomains [5]string = [5]string{"energy-cores", "energy-gpu", "energy-pkg", "energy-ram", "energy-psys"}
+var (
+	raplDomains [5]string = [5]string{"energy-cores", "energy-gpu", "energy-pkg", "energy-ram", "energy-psys"}
+	totalCores  int
+	packages    map[int64]bool
+)
+
+func init() {
+	klog.Infoln("initializing rapl readers...")
+
+	var err error
+
+	totalCores, packages, err = DetectPackages()
+	if err != nil {
+		klog.Errorln(err)
+	}
+
+	klog.Infof("initialized rapl readers: %d cores, %d package(s)", totalCores, len(packages))
+}
 
 type RaplReader interface {
 	Available() bool

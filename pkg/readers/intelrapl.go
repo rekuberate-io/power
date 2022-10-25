@@ -1,13 +1,17 @@
 package readers
 
 import (
+	"errors"
 	"fmt"
+	"os"
+
+	"k8s.io/klog/v2"
 )
 
 const (
-	zone        = "/sys/class/powercap/intel-rapl/intel-rapl:%d/"
-	zoneName    = "/sys/class/powercap/intel-rapl/intel-rapl:%d/name"
-	zoneEnergy  = "/sys/class/powercap/intel-rapl/intel-rapl:%d/energy_uj"
+	zone          = "/sys/class/powercap/intel-rapl/intel-rapl:%d/"
+	zoneName      = "/sys/class/powercap/intel-rapl/intel-rapl:%d/name"
+	zoneEnergy    = "/sys/class/powercap/intel-rapl/intel-rapl:%d/energy_uj"
 	subZoneName   = "/sys/class/powercap/intel-rapl/intel-rapl:%d/intel-rapl:%d:%d/name"
 	subZoneEnergy = "/sys/class/powercap/intel-rapl/intel-rapl:%d/intel-rapl:%d:%d/energy_uj"
 )
@@ -21,20 +25,23 @@ func (r *IntelRapl) Available() bool {
 
 func (r *IntelRapl) Read() (map[string]uint64, error) {
 	measurements := map[string]uint64{}
-	_, packages, err := DetectPackages()
-	if err != nil {
-		return nil, err
-	}
+	var readError error 
 
 	for packageId, enabled := range packages {
 		if enabled {
 			name, err := ReadStringFromFile(fmt.Sprintf(zoneName, packageId))
-			if err != nil {
+			if err != nil && !errors.Is(err, os.ErrNotExist){
+				klog.Errorln(err)
+				readError = err
+			} else if errors.Is(err, os.ErrNotExist){
 				break
 			}
 
 			energy, err := ReadUintFromFile(fmt.Sprintf(zoneEnergy, packageId))
-			if err != nil {
+			if err != nil && !errors.Is(err, os.ErrNotExist){
+				klog.Errorln(err)
+				readError = err
+			} else if errors.Is(err, os.ErrNotExist){
 				break
 			}
 
@@ -42,12 +49,18 @@ func (r *IntelRapl) Read() (map[string]uint64, error) {
 
 			for raplDomainId := range raplDomains {
 				name, err := ReadStringFromFile(fmt.Sprintf(subZoneName, packageId, packageId, raplDomainId))
-				if err != nil {
+				if err != nil && !errors.Is(err, os.ErrNotExist) {
+					klog.Errorln(err)
+					readError = err
+				} else if errors.Is(err, os.ErrNotExist) {
 					break
 				}
 
 				energy, err := ReadUintFromFile(fmt.Sprintf(subZoneEnergy, packageId, packageId, raplDomainId))
-				if err != nil {
+				if err != nil && !errors.Is(err, os.ErrNotExist) {
+					klog.Errorln(err)
+					readError = err
+				} else if errors.Is(err, os.ErrNotExist) {
 					break
 				}
 
@@ -56,5 +69,5 @@ func (r *IntelRapl) Read() (map[string]uint64, error) {
 		}
 	}
 
-	return measurements, nil
+	return measurements, readError
 }
