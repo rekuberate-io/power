@@ -3,6 +3,7 @@ package readers
 import (
 	"bufio"
 	"fmt"
+	"k8s.io/klog/v2"
 	"os"
 	"strconv"
 	"strings"
@@ -25,7 +26,7 @@ func (c *CpuInfo) String() string {
 }
 
 func DetectCpu() ([]*CpuInfo, error) {
-	cpuInfoCollection := []*CpuInfo{}
+	var cpuInfoCollection []*CpuInfo
 
 	var cpuInfo *CpuInfo
 
@@ -33,7 +34,12 @@ func DetectCpu() ([]*CpuInfo, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer file.Close()
+	defer func(file *os.File) {
+		err := file.Close()
+		if err != nil {
+			klog.Errorln(err)
+		}
+	}(file)
 
 	scanner := bufio.NewScanner(file)
 	scanner.Split(bufio.ScanLines)
@@ -50,13 +56,13 @@ func DetectCpu() ([]*CpuInfo, error) {
 		}
 
 		if strings.HasPrefix(text, "vendor_id") {
-			vendor_id := text[12:]
-			cpuInfo.Vendor = vendor_id
+			vendorId := text[12:]
+			cpuInfo.Vendor = vendorId
 		}
 
 		if strings.HasPrefix(text, "cpu family") {
-			cpu_family := text[12:]
-			cpuInfo.Family = cpu_family
+			cpuFamily := text[12:]
+			cpuInfo.Family = cpuFamily
 		}
 
 		if strings.HasPrefix(text, "model		:") {
@@ -69,7 +75,6 @@ func DetectCpu() ([]*CpuInfo, error) {
 		cpuInfoCollection = append(cpuInfoCollection, cpuInfo)
 	}
 
-	file.Close()
 	return cpuInfoCollection, nil
 }
 
