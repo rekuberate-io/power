@@ -12,7 +12,7 @@ import (
 )
 
 var (
-	duration = flag.Uint("duration", 1, "duration in seconds")
+	duration = flag.Uint("duration", 30, "duration in seconds")
 	interval = flag.Uint("interval", 1, "interval in seconds")
 	strategy = flag.Int("strategy", 1, "rapl reader strategy")
 )

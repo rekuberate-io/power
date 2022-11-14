@@ -9,10 +9,10 @@ import (
 type RaplReaderStrategy int
 
 const (
-	First_Available RaplReaderStrategy = iota
-	Intel_Rapl                         // Reading the files under /sys/class/powercap/intel-rapl/intel-rapl:0 using the powercap interface. This requires no special permissions, and was introduced in Linux 3.13
-	Perf_Event                         // Using the perf_event interface with Linux 3.14 or newer. This requires root or a paranoid less than 1 (as do all system wide measurements with -a) sudo perf stat -a -e "power/energy-cores/" /bin/ls Available events can be found via perf list or under/sys/bus/event_source/devices/power/events/
-	Raw_Access                         // Using raw-access to the underlying MSRs under /dev/msr. This requires root.
+	firstAvailable RaplReaderStrategy = iota
+	powercap                          // Reading the files under /sys/class/powercap/intel-rapl/intel-rapl:0 using the powercap interface. This requires no special permissions, and was introduced in Linux 3.13
+	perf_event                        // Using the perf_event interface with Linux 3.14 or newer. This requires root or a paranoid less than 1 (as do all system wide measurements with -a) sudo perf stat -a -e "power/energy-cores/" /bin/ls Available events can be found via perf list or under/sys/bus/event_source/devices/power/events/
+	msr                               // Using raw-access to the underlying MSRs under /dev/msr. This requires root.
 )
 
 var (
@@ -40,24 +40,24 @@ type RaplReader interface {
 }
 
 func NewRaplReader(forceRaplReaderStrategyIfAvailable RaplReaderStrategy) (RaplReader, error) {
-	intelRaplReader := &IntelRapl{}
+	intelRaplReader := &PowerCap{}
 	perfEventReader := &PerfEventReader{}
 	msrReader := &MsrReader{}
 
 	switch forceRaplReaderStrategyIfAvailable {
-	case Intel_Rapl:
+	case powercap:
 		if intelRaplReader.Available() {
 			return intelRaplReader, nil
 		}
-	case Perf_Event:
+	case perf_event:
 		if perfEventReader.Available() {
 			return perfEventReader, nil
 		}
-	case Raw_Access:
+	case msr:
 		if msrReader.Available() {
 			return msrReader, nil
 		}
-	case First_Available:
+	case firstAvailable:
 		if intelRaplReader.Available() {
 			return intelRaplReader, nil
 		} else if perfEventReader.Available() {
