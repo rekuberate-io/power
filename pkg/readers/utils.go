@@ -1,10 +1,12 @@
 package readers
 
 import (
+	"encoding/binary"
 	"errors"
 	"os"
 	"strconv"
 	"strings"
+	"unsafe"
 )
 
 func FileExists(path string) bool {
@@ -100,3 +102,47 @@ func ParseBool(b string) *bool {
 	}
 	return &truth
 }
+
+func GetEndianness() (binary.ByteOrder, error) {
+	buffer := [2]byte{}
+	*(*uint16)(unsafe.Pointer(&buffer[0])) = uint16(0xABCD)
+
+	switch buffer {
+	case [2]byte{0xCD, 0xAB}:
+		return binary.LittleEndian, nil
+	case [2]byte{0xAB, 0xCD}:
+		return binary.BigEndian, nil
+	default:
+		return nil, errors.New("could not determine native endianness")
+	}
+}
+
+//const (
+//	CPU_UNKNOWN_MODEL    = -1
+//	CPU_SANDYBRIDGE      = 42
+//	CPU_SANDYBRIDGE_EP   = 45
+//	CPU_IVYBRIDGE        = 58
+//	CPU_IVYBRIDGE_EP     = 62
+//	CPU_HASWELL          = 60
+//	CPU_HASWELL_ULT      = 69
+//	CPU_HASWELL_GT3E     = 70
+//	CPU_HASWELL_EP       = 63
+//	CPU_BROADWELL        = 61
+//	CPU_BROADWELL_GT3E   = 71
+//	CPU_BROADWELL_EP     = 79
+//	CPU_BROADWELL_DE     = 86
+//	CPU_SKYLAKE          = 78
+//	CPU_SKYLAKE_HS       = 94
+//	CPU_SKYLAKE_X        = 85
+//	CPU_KNIGHTS_LANDING  = 87
+//	CPU_KNIGHTS_MILL     = 133
+//	CPU_KABYLAKE_MOBILE  = 142
+//	CPU_KABYLAKE         = 158
+//	CPU_ATOM_SILVERMONT  = 55
+//	CPU_ATOM_AIRMONT     = 76
+//	CPU_ATOM_MERRIFIELD  = 74
+//	CPU_ATOM_MOOREFIELD  = 90
+//	CPU_ATOM_GOLDMONT    = 92
+//	CPU_ATOM_GEMINI_LAKE = 122
+//	CPU_ATOM_DENVERTON   = 95
+//)

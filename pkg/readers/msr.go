@@ -6,7 +6,7 @@ const (
 	msrPath = "/dev/cpu/%d/msr"
 )
 
-//MsrReader is collecting RAPL results on Linux by using raw-access to the underlying MSRs under /dev/msr. This requires root.
+//MsrReader is collecting RAPL results on Linux by using raw-access to the underlying MSRs under /dev/cpu/%d/msr. This requires root.
 type MsrReader struct {
 }
 
@@ -17,5 +17,16 @@ func (r *MsrReader) Available() bool {
 
 //Read a measurement using this reader strategy
 func (r *MsrReader) Read() (map[string]uint64, error) {
+	for pkg, processors := range packages {
+		for index, processor := range processors {
+			fmt.Printf("Core: %d (Pkg: %d)", processor.Id, pkg)
+
+			if index != len(processors)-1 {
+				fmt.Print(", ")
+			}
+		}
+	}
+
+	fmt.Println()
 	return nil, nil
 }

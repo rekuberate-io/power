@@ -1,11 +1,7 @@
 package readers
 
 import (
-	"errors"
 	"fmt"
-	"os"
-
-	"k8s.io/klog/v2"
 )
 
 const (
@@ -30,47 +26,47 @@ func (r *PowerCap) Read() (map[string]uint64, error) {
 	measurements := map[string]uint64{}
 	var readError error
 
-	for packageId, enabled := range packages {
-		if enabled {
-			name, err := ReadStringFromFile(fmt.Sprintf(zoneName, packageId))
-			if err != nil && !errors.Is(err, os.ErrNotExist) {
-				klog.Errorln(err)
-				readError = err
-			} else if errors.Is(err, os.ErrNotExist) {
-				break
-			}
-
-			energy, err := ReadUintFromFile(fmt.Sprintf(zoneEnergy, packageId))
-			if err != nil && !errors.Is(err, os.ErrNotExist) {
-				klog.Errorln(err)
-				readError = err
-			} else if errors.Is(err, os.ErrNotExist) {
-				break
-			}
-
-			measurements[name] = energy
-
-			for raplDomainId := range raplDomains {
-				name, err := ReadStringFromFile(fmt.Sprintf(subZoneName, packageId, packageId, raplDomainId))
-				if err != nil && !errors.Is(err, os.ErrNotExist) {
-					klog.Errorln(err)
-					readError = err
-				} else if errors.Is(err, os.ErrNotExist) {
-					break
-				}
-
-				energy, err := ReadUintFromFile(fmt.Sprintf(subZoneEnergy, packageId, packageId, raplDomainId))
-				if err != nil && !errors.Is(err, os.ErrNotExist) {
-					klog.Errorln(err)
-					readError = err
-				} else if errors.Is(err, os.ErrNotExist) {
-					break
-				}
-
-				measurements[name] = energy
-			}
-		}
-	}
+	//for packageId, enabled := range Packages {
+	//	//if enabled {
+	//	//	name, err := ReadStringFromFile(fmt.Sprintf(zoneName, packageId))
+	//	//	if err != nil && !errors.Is(err, os.ErrNotExist) {
+	//	//		klog.Errorln(err)
+	//	//		readError = err
+	//	//	} else if errors.Is(err, os.ErrNotExist) {
+	//	//		break
+	//	//	}
+	//	//
+	//	//	energy, err := ReadUintFromFile(fmt.Sprintf(zoneEnergy, packageId))
+	//	//	if err != nil && !errors.Is(err, os.ErrNotExist) {
+	//	//		klog.Errorln(err)
+	//	//		readError = err
+	//	//	} else if errors.Is(err, os.ErrNotExist) {
+	//	//		break
+	//	//	}
+	//	//
+	//	//	measurements[name] = energy
+	//	//
+	//	//	for raplDomainId := range raplDomains {
+	//	//		name, err := ReadStringFromFile(fmt.Sprintf(subZoneName, packageId, packageId, raplDomainId))
+	//	//		if err != nil && !errors.Is(err, os.ErrNotExist) {
+	//	//			klog.Errorln(err)
+	//	//			readError = err
+	//	//		} else if errors.Is(err, os.ErrNotExist) {
+	//	//			break
+	//	//		}
+	//	//
+	//	//		energy, err := ReadUintFromFile(fmt.Sprintf(subZoneEnergy, packageId, packageId, raplDomainId))
+	//	//		if err != nil && !errors.Is(err, os.ErrNotExist) {
+	//	//			klog.Errorln(err)
+	//	//			readError = err
+	//	//		} else if errors.Is(err, os.ErrNotExist) {
+	//	//			break
+	//	//		}
+	//	//
+	//	//		measurements[name] = energy
+	//	//	}
+	//	//}
+	//}
 
 	return measurements, readError
 }

@@ -18,20 +18,19 @@ const (
 var (
 	raplDomains [5]string = [5]string{"energy-cores", "energy-gpu", "energy-pkg", "energy-ram", "energy-psys"}
 	totalCores  int
-	packages    map[int64]bool
+	packages    map[int64][]*Processor
 )
 
 func init() {
-	klog.Infoln("initializing rapl readers...")
+	klog.V(10).Infoln("initializing rapl readers...")
 
 	var err error
-
-	totalCores, packages, err = DetectPackages()
+	packages, err = DetectPackages()
 	if err != nil {
 		klog.Errorln(err)
 	}
 
-	klog.Infof("initialized rapl readers: %d cores, %d package(s)", totalCores, len(packages))
+	klog.V(10).Infof("initialized processor package mappings: %d package(s)", len(packages))
 }
 
 type RaplReader interface {
@@ -75,5 +74,5 @@ func NewRaplReader(forceRaplReaderStrategyIfAvailable RaplReaderStrategy) (RaplR
 		return msrReader, nil
 	}
 
-	return nil, fmt.Errorf("no available power reader strategy")
+	return nil, fmt.Errorf("no available rapl reader strategy")
 }
