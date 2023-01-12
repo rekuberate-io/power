@@ -12,6 +12,10 @@ const (
 	subZoneEnergy = "/sys/class/powercap/intel-rapl/intel-rapl:%d/intel-rapl:%d:%d/energy_uj"
 )
 
+var (
+	raplDomains [5]string = [5]string{"energy-cores", "energy-gpu", "energy-pkg", "energy-ram", "energy-psys"}
+)
+
 // PowerCap is collecting RAPL results on Linux by reading the files under /sys/class/powercap/intel-rapl/intel-rapl:0 using the powercap interface. This requires no special permissions, and was introduced in Linux 3.13
 type PowerCap struct {
 }

@@ -41,7 +41,7 @@ func main() {
 	endAt := time.Now().UTC().Add(time.Duration(*duration) * time.Second)
 
 	for endAt.After(time.Now().UTC()) {
-		klog.Infof("measuring...")
+		klog.V(10).Infof("measuring...")
 		measurements, err := raplReader.Read()
 		if err != nil {
 			klog.Errorln(err)

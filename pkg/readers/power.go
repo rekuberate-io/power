@@ -1,7 +1,9 @@
 package readers
 
 import (
+	"errors"
 	"fmt"
+	"strings"
 
 	"k8s.io/klog/v2"
 )
@@ -16,9 +18,7 @@ const (
 )
 
 var (
-	raplDomains [5]string = [5]string{"energy-cores", "energy-gpu", "energy-pkg", "energy-ram", "energy-psys"}
-	totalCores  int
-	cpus        map[int]*Cpu
+	cpus map[int]*Cpu
 )
 
 func init() {
@@ -31,7 +31,20 @@ func init() {
 	}
 
 	for _, cpu := range cpus {
-		klog.Infof("detected processor %s/%s on socket %d : cores: %d, packages: %d", cpu.Model.Name, cpu.Model.InternalName, cpu.PhysicalId, len(cpu.Cores), len(cpu.Packages))
+		klog.Infof("detected %s processor '%s/%s/Fam:%d' on socket %d (packages: %d, cores: %d)", cpu.Vendor.String(), strings.TrimSpace(cpu.Model.Name), cpu.Model.InternalName, cpu.Family, cpu.PhysicalId, len(cpu.Cores), len(cpu.Packages))
+
+		switch cpu.Vendor {
+		case NotAvailable:
+			panic(errors.New("failed to determine the cpu vendor"))
+		case AMD:
+			if cpu.Family < AMDMinimumSupportedCpuFamily {
+				panic(errors.New(fmt.Sprintf("unsupported cpu family, for amd processors it should be minimum: %d", AMDMinimumSupportedCpuFamily)))
+			}
+		case Intel:
+			if cpu.Family < IntelMinimumSupportedCpuFamily {
+				panic(errors.New(fmt.Sprintf("unsupported cpu family, for intel processors it should be minimum: %d", IntelMinimumSupportedCpuFamily)))
+			}
+		}
 	}
 }
 
