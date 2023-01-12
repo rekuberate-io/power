@@ -2,6 +2,7 @@ package readers
 
 import (
 	"bufio"
+	"encoding/binary"
 	"fmt"
 	"k8s.io/klog/v2"
 	"os"
@@ -52,33 +53,37 @@ func init() {
 	CpuModels[95] = "CPU_ATOM_DENVERTON"
 }
 
-type Processor struct {
-	Id       int
-	Vendor   ProcessorVendor
-	Family   int
-	Model    ProcessorModel
-	Cores    int
-	Siblings int
+type Cpu struct {
+	PhysicalId int
+	Vendor     Vendor
+	Model      Model
+	Family     int
+	Cores      []Core
+	Packages   map[int64]bool
+	ByteOrder  binary.ByteOrder
 }
 
-type ProcessorModel struct {
+type Core struct {
+	Id      int
+	Package int64
+}
+
+type Model struct {
 	Id           int
 	Name         string
 	InternalName string
 }
 
-func (c *Processor) String() string {
-	return fmt.Sprintf("{ Id: %d, Vendor: %s, Family: %d, Model: %s }", c.Id, c.Vendor.String(), c.Family, c.Model.InternalName)
+func (c *Cpu) String() string {
+	return fmt.Sprintf("{ Name: %s, Vendor: %s, Family: %d, Model: %s }", c.Model.Name, c.Vendor.String(), c.Family, c.Model.InternalName)
 }
 
-func parseCpuInfo() ([]*Processor, error) {
-	var processors []*Processor
-	var processor *Processor
-	const parseAt int = 12
+func GetNumberOfSockets() (int, error) {
+	cpuSockets := make(map[int]bool)
 
 	file, err := os.Open(cpuInfoPath)
 	if err != nil {
-		return nil, err
+		return 0, err
 	}
 	defer func(file *os.File) {
 		err := file.Close()
@@ -93,10 +98,51 @@ func parseCpuInfo() ([]*Processor, error) {
 	for scanner.Scan() {
 		text := scanner.Text()
 
+		if strings.HasPrefix(text, "physical id") {
+			id, _ := strconv.Atoi(text[12:])
+			if _, exists := cpuSockets[id]; !exists {
+				cpuSockets[id] = true
+			}
+		}
+	}
+
+	return len(cpuSockets), nil
+}
+
+func parseCpuInfo() (map[int]*Cpu, error) {
+	const parseAt int = 12
+	cpuSockets, err := GetNumberOfSockets()
+	if err != nil {
+		return nil, err
+	}
+
+	cpus := make(map[int]*Cpu, cpuSockets)
+
+	file, err := os.Open(cpuInfoPath)
+	if err != nil {
+		return nil, err
+	}
+	defer func(file *os.File) {
+		err := file.Close()
+		if err != nil {
+			klog.Errorln(err)
+		}
+	}(file)
+
+	scanner := bufio.NewScanner(file)
+	scanner.Split(bufio.ScanLines)
+	var cpu *Cpu = &Cpu{}
+
+	for scanner.Scan() {
+		text := scanner.Text()
+
 		if strings.HasPrefix(text, "processor") {
+			cpu = &Cpu{}
+
 			id, _ := strconv.Atoi(text[parseAt:])
-			processor = &Processor{Id: id, Model: ProcessorModel{}}
-			processors = append(processors, processor)
+			core := Core{Id: id, Package: -1}
+
+			cpu.Cores = append(cpu.Cores, core)
 		}
 
 		if strings.HasPrefix(text, "vendor_id") {
@@ -104,87 +150,96 @@ func parseCpuInfo() ([]*Processor, error) {
 
 			switch vendorId {
 			case "GenuineIntel":
-				processor.Vendor = Intel
+				cpu.Vendor = Intel
 			case "AuthenticAMD":
-				processor.Vendor = AMD
+				cpu.Vendor = AMD
 			default:
-				processor.Vendor = NotAvailable
+				cpu.Vendor = NotAvailable
 			}
 		}
 
 		if strings.HasPrefix(text, "cpu family") {
 			family, _ := strconv.Atoi(text[parseAt+1:])
-			processor.Family = family
+			cpu.Family = family
+		}
+
+		if strings.HasPrefix(text, "cpu family") {
+			family, _ := strconv.Atoi(text[parseAt+1:])
+			cpu.Family = family
 		}
 
 		if strings.HasPrefix(text, "model		:") {
 			model, _ := strconv.Atoi(text[parseAt-3:])
-			processor.Model.Id = model
+			cpu.Model.Id = model
 
 			if cpuModel, exists := CpuModels[model]; exists {
-				processor.Model.InternalName = cpuModel
+				cpu.Model.InternalName = cpuModel
 			} else {
-				processor.Model.InternalName = CpuModels[0]
+				cpu.Model.InternalName = CpuModels[0]
 			}
 		}
 
 		if strings.HasPrefix(text, "model name") {
 			modelName := text[parseAt:]
-			processor.Model.Name = modelName
+			cpu.Model.Name = modelName
 		}
 
-		if strings.HasPrefix(text, "cpu cores") {
-			cpuCores, _ := strconv.Atoi(text[parseAt:])
-			processor.Cores = cpuCores
-		}
+		if strings.HasPrefix(text, "physical id") {
+			id, _ := strconv.Atoi(text[parseAt:])
+			cpu.PhysicalId = id
 
-		if strings.HasPrefix(text, "siblings") {
-			siblings, _ := strconv.Atoi(text[parseAt-1:])
-			processor.Siblings = siblings
-		}
-	}
+			if _, exists := cpus[id]; !exists {
+				endianness, err := GetEndianness()
+				if err != nil {
+					return nil, err
+				}
 
-	//for _, processor := range processors {
-	//	fmt.Println(processor)
-	//}
+				cpu.ByteOrder = endianness
 
-	return processors, nil
-}
-
-func DetectPackages() (packages map[int64][]*Processor, err error) {
-	packages = map[int64][]*Processor{}
-
-	processors, err := parseCpuInfo()
-	if err != nil {
-		return nil, err
-	}
-
-	for _, processor := range processors {
-		physicalPackageIdPath := fmt.Sprintf(physicalPackageIdPath, processor.Id)
-		packageId, err := ReadIntFromFile(physicalPackageIdPath)
-		if err == nil {
-			if _, exists := packages[packageId]; !exists {
-				var cores []*Processor
-				packages[packageId] = append(cores, processor)
+				cpus[id] = cpu
 			} else {
-				cores := packages[packageId]
-				packages[packageId] = append(cores, processor)
+				cpus[id].Cores = append(cpus[id].Cores, cpu.Cores[0])
 			}
 		}
 	}
 
-	return packages, err
+	return cpus, nil
 }
 
-type ProcessorVendor int
+func DetectPackages() (map[int]*Cpu, error) {
+	cpus, err := parseCpuInfo()
+	if err != nil {
+		return nil, err
+	}
+
+	for _, cpu := range cpus {
+		cpu.Packages = make(map[int64]bool)
+
+		for coreIdx, core := range cpu.Cores {
+			physicalPackageIdPath := fmt.Sprintf(physicalPackageIdPath, core.Id)
+			packageId, err := ReadIntFromFile(physicalPackageIdPath)
+			if err == nil {
+				if _, exists := cpu.Packages[packageId]; !exists {
+					cpu.Packages[packageId] = true
+				}
+
+				cpu.Cores[coreIdx].Package = packageId
+			}
+		}
+	}
+
+	return cpus, err
+}
+
+type Vendor int
 
 const (
-	NotAvailable ProcessorVendor = iota
+	NotAvailable Vendor = iota
 	Intel
 	AMD
 )
 
-func (pv ProcessorVendor) String() string {
+func (pv Vendor) String() string {
 	var values []string = []string{"NotAvailable", "Intel", "AMD"}
 	vendor := values[pv]
 

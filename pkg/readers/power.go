@@ -18,19 +18,21 @@ const (
 var (
 	raplDomains [5]string = [5]string{"energy-cores", "energy-gpu", "energy-pkg", "energy-ram", "energy-psys"}
 	totalCores  int
-	packages    map[int64][]*Processor
+	cpus        map[int]*Cpu
 )
 
 func init() {
-	klog.V(10).Infoln("initializing rapl readers...")
+	klog.Infoln("initializing rapl readers...")
 
 	var err error
-	packages, err = DetectPackages()
+	cpus, err = DetectPackages()
 	if err != nil {
 		klog.Errorln(err)
 	}
 
-	klog.V(10).Infof("initialized processor package mappings: %d package(s)", len(packages))
+	for _, cpu := range cpus {
+		klog.Infof("detected processor %s/%s on socket %d : cores: %d, packages: %d", cpu.Model.Name, cpu.Model.InternalName, cpu.PhysicalId, len(cpu.Cores), len(cpu.Packages))
+	}
 }
 
 type RaplReader interface {
