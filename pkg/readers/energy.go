@@ -1,5 +1,7 @@
 package readers
 
+const joulesToKiloWattHour = 2.7777777777778e-7
+
 // Energy : the structure that holds the energy measurements
 // Pkg => Package,
 // PP0 => Core,
@@ -28,6 +30,18 @@ func (e Energy) Sub(e2 Energy) Energy {
 		DRAM: e.DRAM - e2.DRAM,
 		PSys: e.PSys - e2.PSys,
 	}
+}
+
+func (e Energy) ToKiloWattHour() Power {
+	power := Power{
+		Pkg:  e.Pkg * joulesToKiloWattHour,
+		PP0:  e.PP0 * joulesToKiloWattHour,
+		PP1:  e.PP1 * joulesToKiloWattHour,
+		DRAM: e.DRAM * joulesToKiloWattHour,
+		PSys: e.PSys * joulesToKiloWattHour,
+	}
+
+	return power
 }
 
 type Measurement map[int64]map[int]Energy
@@ -70,3 +84,5 @@ func (m Measurement) DeltaSum(m2 Measurement) Measurement {
 type Units struct {
 	Power, Time, CpuEnergy, DramEnergy float64
 }
+
+type Power Energy

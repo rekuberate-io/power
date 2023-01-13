@@ -57,11 +57,14 @@ func main() {
 	for pkgId, cores := range measurement {
 		fmt.Printf("Package: %d\n", pkgId)
 		for _, core := range cores {
-			fmt.Printf("\t\tPackage energy: %v J\n", core.Pkg)
-			fmt.Printf("\t\tPowerPlane0 (cores): %v J\n", core.PP0)
-			fmt.Printf("\t\tPowerPlane1 (on-core GPU if avail): %v J\n", core.PP1)
-			fmt.Printf("\t\tDRAM: %v J\n", core.DRAM)
-			fmt.Printf("\t\tPSYS: %v J\n", core.PSys)
+
+			power := core.ToKiloWattHour()
+
+			fmt.Printf("\t%-21s: %18.6f J %27.15f kWh\n", "Package", core.Pkg, power.Pkg)
+			fmt.Printf("\t%-21s: %18.6f J %27.15f kWh\n", "PowerPlane0 (cores)", core.PP0, power.PP0)
+			fmt.Printf("\t%-21s: %18.6f J %27.15f kWh\n", "PowerPlane1 (L3/gpu)", core.PP1, power.PP1)
+			fmt.Printf("\t%-21s: %18.6f J %27.15f kWh\n", "DRAM", core.DRAM, power.DRAM)
+			fmt.Printf("\t%-21s: %18.6f J %27.15f kWh\n", "PSYS", core.PSys, power.PSys)
 		}
 	}
 }
