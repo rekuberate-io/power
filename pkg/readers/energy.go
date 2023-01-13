@@ -1,6 +1,6 @@
 package readers
 
-// Energy : the structure that hold the energy measurements
+// Energy : the structure that holds the energy measurements
 // Pkg => Package,
 // PP0 => Core,
 // PP1 => Uncore (L3 cache, integrated GPU if present),

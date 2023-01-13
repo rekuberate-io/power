@@ -20,6 +20,6 @@ func (r *PerfEventReader) Available() bool {
 	return FileExists(perfEventPowerPath)
 }
 
-func (r *PerfEventReader) Read() (map[string]uint64, error) {
+func (r *PerfEventReader) Read() (Measurement, error) {
 	return nil, nil
 }

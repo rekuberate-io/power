@@ -18,19 +18,19 @@ const (
 )
 
 var (
-	cpus map[int]*Cpu
+	Cpus map[int]*Cpu
 )
 
 func init() {
 	klog.V(5).Infoln("initializing rapl readers...")
 
 	var err error
-	cpus, err = DetectPackages()
+	Cpus, err = DetectPackages()
 	if err != nil {
 		klog.Errorln(err)
 	}
 
-	for _, cpu := range cpus {
+	for _, cpu := range Cpus {
 		klog.V(5).Infof("detected %s processor '%s/%s/Fam:%d' on socket %d (packages: %d, cores: %d)", cpu.Vendor.String(), strings.TrimSpace(cpu.Model.Name), cpu.Model.InternalName, cpu.Family, cpu.PhysicalId, len(cpu.Cores), len(cpu.Packages))
 
 		switch cpu.Vendor {
@@ -50,7 +50,7 @@ func init() {
 
 type RaplReader interface {
 	Available() bool
-	Read() (map[string]uint64, error)
+	Read() (Measurement, error)
 }
 
 func NewRaplReader(forceRaplReaderStrategyIfAvailable RaplReaderStrategy) (RaplReader, error) {

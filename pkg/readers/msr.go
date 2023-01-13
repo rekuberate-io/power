@@ -36,7 +36,7 @@ func (r *MsrReader) Available() bool {
 }
 
 //Read a measurement using this reader strategy
-func (r *MsrReader) Read() (map[string]uint64, error) {
+func (r *MsrReader) Read() (Measurement, error) {
 	pkgUnits, err := r.initUnits()
 	if err != nil {
 		panic(err)
@@ -59,25 +59,14 @@ func (r *MsrReader) Read() (map[string]uint64, error) {
 	}
 
 	delta := after.DeltaSum(before)
-	for pkgId, cores := range delta {
-		fmt.Printf("Package: %d\n", pkgId)
-		for _, core := range cores {
-			//fmt.Printf("\tCore: %d\n", coreId)
-			fmt.Printf("\t\tPackage energy: %v J\n", core.Pkg)
-			fmt.Printf("\t\tPowerPlane0 (cores): %v J\n", core.PP0)
-			fmt.Printf("\t\tPowerPlane1 (on-core GPU if avail): %v J\n", core.PP1)
-			fmt.Printf("\t\tDRAM: %v J\n", core.DRAM)
-			fmt.Printf("\t\tPSYS: %v J\n", core.PSys)
-		}
-	}
 
-	return nil, nil
+	return delta, nil
 }
 
 func (r *MsrReader) measure() (Measurement, error) {
 	measurement := Measurement{}
 
-	for _, cpu := range cpus {
+	for _, cpu := range Cpus {
 		for _, core := range cpu.Cores {
 			byteOrder := cpu.ByteOrder
 			var energy = Energy{}
@@ -138,16 +127,6 @@ func (r *MsrReader) close(fd int) error {
 	return nil
 }
 
-func (r *MsrReader) readEnergy(fd int, offset int64, unit float64, order binary.ByteOrder) float64 {
-	result, err := r.read(fd, offset, order)
-	if err != nil {
-		klog.Errorln("reading offset:%d failed", offset, err)
-		return 0
-	}
-
-	return unit * float64(result)
-}
-
 // /dev/cpu/CPUNUM/msr provides an interface to read and write the
 // model-specific registers (MSRs) of an x86 CPU.  CPUNUM is the
 // number of the CPU to access as listed in /proc/cpuinfo.
@@ -178,6 +157,16 @@ func (r *MsrReader) read(fd int, offset int64, order binary.ByteOrder) (uint64, 
 	return result, nil
 }
 
+func (r *MsrReader) readEnergy(fd int, offset int64, unit float64, order binary.ByteOrder) float64 {
+	result, err := r.read(fd, offset, order)
+	if err != nil {
+		klog.Errorln("reading offset:%d failed", offset, err)
+		return 0
+	}
+
+	return unit * float64(result)
+}
+
 func (r *MsrReader) initPerVendor(cpu Cpu) {
 	switch cpu.Vendor {
 	case AMD:
@@ -197,7 +186,7 @@ func (r *MsrReader) initPerVendor(cpu Cpu) {
 func (r *MsrReader) initUnits() (map[int64]map[int]Units, error) {
 	pkgUnits := make(map[int64]map[int]Units)
 
-	for _, cpu := range cpus {
+	for _, cpu := range Cpus {
 		r.initPerVendor(*cpu)
 
 		for _, core := range cpu.Cores {

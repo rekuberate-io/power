@@ -5,13 +5,12 @@ import (
 	"fmt"
 	"github.com/rekuberate-io/power/pkg/readers"
 	"os"
+	"strings"
 
 	"k8s.io/klog/v2"
 )
 
 var (
-	duration = flag.Uint("duration", 30, "duration in seconds")
-	interval = flag.Uint("interval", 1, "interval in seconds")
 	strategy = flag.Int("strategy", 1, "rapl reader strategy")
 )
 
@@ -32,29 +31,38 @@ func main() {
 		"starting rapl measuring session on %s { reader: %T, duration: %dsec, interval: %dsec }",
 		hostname,
 		raplReader,
-		*duration,
-		*interval,
 	))
 
-	//endAt := time.Now().UTC().Add(time.Duration(*duration) * time.Second)
-	//
-	//for endAt.After(time.Now().UTC()) {
-	//	klog.V(10).Infof("measuring...")
-	//	measurements, err := raplReader.Read()
-	//	if err != nil {
-	//		klog.Errorln(err)
-	//	}
-	//
-	//	for k, v := range measurements {
-	//		klog.Infof("%-10s %30v\n", k, v)
-	//	}
-	//
-	//	time.Sleep(time.Duration(*interval) * time.Second)
-	//}
+	for _, cpu := range readers.Cpus {
+		fmt.Printf(
+			"%s '%s/%s/Fam:%d' on socket %d (packages: %d, cores: %d)",
+			cpu.Vendor.String(),
+			strings.TrimSpace(cpu.Model.Name),
+			cpu.Model.InternalName,
+			cpu.Family,
+			cpu.PhysicalId,
+			len(cpu.Packages),
+			len(cpu.Cores),
+		)
+	}
 
-	_, err = raplReader.Read()
+	fmt.Println()
+	fmt.Println()
+
+	measurement, err := raplReader.Read()
 	if err != nil {
 		klog.Errorln(err)
+	}
+
+	for pkgId, cores := range measurement {
+		fmt.Printf("Package: %d\n", pkgId)
+		for _, core := range cores {
+			fmt.Printf("\t\tPackage energy: %v J\n", core.Pkg)
+			fmt.Printf("\t\tPowerPlane0 (cores): %v J\n", core.PP0)
+			fmt.Printf("\t\tPowerPlane1 (on-core GPU if avail): %v J\n", core.PP1)
+			fmt.Printf("\t\tDRAM: %v J\n", core.DRAM)
+			fmt.Printf("\t\tPSYS: %v J\n", core.PSys)
+		}
 	}
 }
 
@@ -64,7 +72,5 @@ func init() {
 }
 
 func exit() {
-	//exitCode := 10
 	klog.V(5).Infoln("exiting rapl measuring session")
-	//klog.FlushAndExit(klog.ExitFlushTimeout, exitCode)
 }

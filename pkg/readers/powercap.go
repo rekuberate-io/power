@@ -26,6 +26,6 @@ func (r *PowerCap) Available() bool {
 }
 
 //Read a measurement using this reader strategy
-func (r *PowerCap) Read() (map[string]uint64, error) {
+func (r *PowerCap) Read() (Measurement, error) {
 	return nil, nil
 }
