@@ -7,6 +7,7 @@ import (
 	"k8s.io/klog/v2"
 	"math"
 	"syscall"
+	"time"
 	"unsafe"
 )
 
@@ -21,6 +22,8 @@ var (
 	pp1EnergyStatus  int64
 	dramEnergyStatus int64
 	psysEnergyStatus int64
+
+	units map[int64]map[int]Units
 )
 
 //MsrReader is collecting RAPL results on Linux by using raw-access to the underlying MSRs under /dev/cpu/%d/msr. This requires root.
@@ -39,10 +42,30 @@ func (r *MsrReader) Read() (map[string]uint64, error) {
 		panic(err)
 	}
 
-	klog.V(10).Infof("PkgUnits: %+v\n", pkgUnits)
+	units = pkgUnits
 
+	klog.V(10).Infof("PkgUnits: %+v\n", units)
+
+	before, err := r.measure()
+	if err != nil {
+		panic(err)
+	}
+
+	time.Sleep(1 * time.Second)
+
+	after, err := r.measure()
+	if err != nil {
+		panic(err)
+	}
+
+	delta := after.Delta(before)
+
+	return nil, nil
+}
+
+func (r *MsrReader) measure() (Measurement, error) {
 	for _, cpu := range cpus {
-		var energy1 = Energy{}
+		var energy = Energy{}
 
 		for _, core := range cpu.Cores {
 			var fds []int
@@ -61,24 +84,14 @@ func (r *MsrReader) Read() (map[string]uint64, error) {
 			}
 
 			for _, fd := range fds {
-				energy1.Pkg += r.readEnergy(fd, pkgEnergyStatus, pkgUnits[core.Package][core.Id].CpuEnergy, cpu.ByteOrder)
-				energy1.PP0 += r.readEnergy(fd, pp0EnergyStatus, pkgUnits[core.Package][core.Id].CpuEnergy, cpu.ByteOrder)
-				energy1.PP1 += r.readEnergy(fd, pp1EnergyStatus, pkgUnits[core.Package][core.Id].CpuEnergy, cpu.ByteOrder)
-				energy1.DRAM += r.readEnergy(fd, dramEnergyStatus, pkgUnits[core.Package][core.Id].DramEnergy, cpu.ByteOrder)
-				energy1.PSys += r.readEnergy(fd, psysEnergyStatus, pkgUnits[core.Package][core.Id].CpuEnergy, cpu.ByteOrder)
+				energy.Pkg = r.readEnergy(fd, pkgEnergyStatus, units[core.Package][core.Id].CpuEnergy, cpu.ByteOrder)
+				energy.PP0 = r.readEnergy(fd, pp0EnergyStatus, units[core.Package][core.Id].CpuEnergy, cpu.ByteOrder)
+				energy.PP1 = r.readEnergy(fd, pp1EnergyStatus, units[core.Package][core.Id].CpuEnergy, cpu.ByteOrder)
+				energy.DRAM = r.readEnergy(fd, dramEnergyStatus, units[core.Package][core.Id].DramEnergy, cpu.ByteOrder)
+				energy.PSys = r.readEnergy(fd, psysEnergyStatus, units[core.Package][core.Id].CpuEnergy, cpu.ByteOrder)
 			}
 		}
-
-		//var energy3 = Energy{}
-		//energy3.Pkg = energy2.Pkg - energy1.Pkg
-		//energy3.PP0 = energy2.PP0 - energy1.PP0
-		//energy3.PP1 = energy2.PP1 - energy1.PP1
-		//energy3.DRAM = energy2.DRAM - energy1.DRAM
-		//energy3.PSys = energy2.PSys - energy1.PSys
-
-		klog.Infof("Energy: %+v\n", energy1)
 	}
-
 	return nil, nil
 }
 
@@ -104,14 +117,14 @@ func (r *MsrReader) close(fd int) error {
 	return nil
 }
 
-func (r *MsrReader) readEnergy(fd int, offset int64, unit float64, order binary.ByteOrder) uint64 {
+func (r *MsrReader) readEnergy(fd int, offset int64, unit float64, order binary.ByteOrder) float64 {
 	result, err := r.read(fd, offset, order)
 	if err != nil {
 		klog.Errorln("reading offset:%d failed", offset, err)
 		return 0
 	}
 
-	return uint64(unit * float64(result))
+	return unit * float64(result)
 }
 
 // /dev/cpu/CPUNUM/msr provides an interface to read and write the
