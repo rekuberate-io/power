@@ -22,7 +22,7 @@ var (
 )
 
 func init() {
-	klog.Infoln("initializing rapl readers...")
+	klog.V(5).Infoln("initializing rapl readers...")
 
 	var err error
 	cpus, err = DetectPackages()
@@ -31,7 +31,7 @@ func init() {
 	}
 
 	for _, cpu := range cpus {
-		klog.Infof("detected %s processor '%s/%s/Fam:%d' on socket %d (packages: %d, cores: %d)", cpu.Vendor.String(), strings.TrimSpace(cpu.Model.Name), cpu.Model.InternalName, cpu.Family, cpu.PhysicalId, len(cpu.Cores), len(cpu.Packages))
+		klog.V(5).Infof("detected %s processor '%s/%s/Fam:%d' on socket %d (packages: %d, cores: %d)", cpu.Vendor.String(), strings.TrimSpace(cpu.Model.Name), cpu.Model.InternalName, cpu.Family, cpu.PhysicalId, len(cpu.Cores), len(cpu.Packages))
 
 		switch cpu.Vendor {
 		case NotAvailable:

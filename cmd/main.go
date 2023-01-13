@@ -3,10 +3,8 @@ package main
 import (
 	"flag"
 	"fmt"
-	"os"
-	"time"
-
 	"github.com/rekuberate-io/power/pkg/readers"
+	"os"
 
 	"k8s.io/klog/v2"
 )
@@ -30,7 +28,7 @@ func main() {
 		klog.Fatalln(err)
 	}
 
-	klog.Infoln(fmt.Sprintf(
+	klog.V(5).Infoln(fmt.Sprintf(
 		"starting rapl measuring session on %s { reader: %T, duration: %dsec, interval: %dsec }",
 		hostname,
 		raplReader,
@@ -38,20 +36,25 @@ func main() {
 		*interval,
 	))
 
-	endAt := time.Now().UTC().Add(time.Duration(*duration) * time.Second)
+	//endAt := time.Now().UTC().Add(time.Duration(*duration) * time.Second)
+	//
+	//for endAt.After(time.Now().UTC()) {
+	//	klog.V(10).Infof("measuring...")
+	//	measurements, err := raplReader.Read()
+	//	if err != nil {
+	//		klog.Errorln(err)
+	//	}
+	//
+	//	for k, v := range measurements {
+	//		klog.Infof("%-10s %30v\n", k, v)
+	//	}
+	//
+	//	time.Sleep(time.Duration(*interval) * time.Second)
+	//}
 
-	for endAt.After(time.Now().UTC()) {
-		klog.V(10).Infof("measuring...")
-		measurements, err := raplReader.Read()
-		if err != nil {
-			klog.Errorln(err)
-		}
-
-		for k, v := range measurements {
-			klog.Infof("%-10s %30v\n", k, v)
-		}
-
-		time.Sleep(time.Duration(*interval) * time.Second)
+	_, err = raplReader.Read()
+	if err != nil {
+		klog.Errorln(err)
 	}
 }
 
@@ -61,7 +64,7 @@ func init() {
 }
 
 func exit() {
-	exitCode := 10
-	klog.Infoln("exiting rapl measuring session")
-	klog.FlushAndExit(klog.ExitFlushTimeout, exitCode)
+	//exitCode := 10
+	klog.V(5).Infoln("exiting rapl measuring session")
+	//klog.FlushAndExit(klog.ExitFlushTimeout, exitCode)
 }

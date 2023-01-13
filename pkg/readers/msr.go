@@ -58,41 +58,62 @@ func (r *MsrReader) Read() (map[string]uint64, error) {
 		panic(err)
 	}
 
-	delta := after.Delta(before)
+	delta := after.DeltaSum(before)
+	for pkgId, cores := range delta {
+		fmt.Printf("Package: %d\n", pkgId)
+		for _, core := range cores {
+			//fmt.Printf("\tCore: %d\n", coreId)
+			fmt.Printf("\t\tPackage energy: %v J\n", core.Pkg)
+			fmt.Printf("\t\tPowerPlane0 (cores): %v J\n", core.PP0)
+			fmt.Printf("\t\tPowerPlane1 (on-core GPU if avail): %v J\n", core.PP1)
+			fmt.Printf("\t\tDRAM: %v J\n", core.DRAM)
+			fmt.Printf("\t\tPSYS: %v J\n", core.PSys)
+		}
+	}
 
 	return nil, nil
 }
 
 func (r *MsrReader) measure() (Measurement, error) {
-	for _, cpu := range cpus {
-		var energy = Energy{}
+	measurement := Measurement{}
 
+	for _, cpu := range cpus {
 		for _, core := range cpu.Cores {
-			var fds []int
-			defer func([]int) {
-				for _, fd := range fds {
-					err := r.close(fd)
-					if err != nil {
-						klog.Errorln("closing fd failed")
-					}
+			byteOrder := cpu.ByteOrder
+			var energy = Energy{}
+			var fd int
+			defer func(int) {
+				err := r.close(fd)
+				if err != nil {
+					klog.Errorf("closing fd for core %d failed", core.Id)
 				}
-			}(fds)
+			}(fd)
 
 			fd, err := r.open(core)
-			if err == nil {
-				fds = append(fds, fd)
+			if err != nil {
+				klog.Errorf("opening fd for core %d failed", core.Id)
+				return nil, err
 			}
 
-			for _, fd := range fds {
-				energy.Pkg = r.readEnergy(fd, pkgEnergyStatus, units[core.Package][core.Id].CpuEnergy, cpu.ByteOrder)
-				energy.PP0 = r.readEnergy(fd, pp0EnergyStatus, units[core.Package][core.Id].CpuEnergy, cpu.ByteOrder)
-				energy.PP1 = r.readEnergy(fd, pp1EnergyStatus, units[core.Package][core.Id].CpuEnergy, cpu.ByteOrder)
-				energy.DRAM = r.readEnergy(fd, dramEnergyStatus, units[core.Package][core.Id].DramEnergy, cpu.ByteOrder)
-				energy.PSys = r.readEnergy(fd, psysEnergyStatus, units[core.Package][core.Id].CpuEnergy, cpu.ByteOrder)
+			cpuEnergyUnit := units[core.Package][core.Id].CpuEnergy
+			dramEnergyUnit := units[core.Package][core.Id].DramEnergy
+
+			energy.Pkg = r.readEnergy(fd, pkgEnergyStatus, cpuEnergyUnit, byteOrder)
+			energy.PP0 = r.readEnergy(fd, pp0EnergyStatus, cpuEnergyUnit, byteOrder)
+			energy.PP1 = r.readEnergy(fd, pp1EnergyStatus, cpuEnergyUnit, byteOrder)
+			energy.DRAM = r.readEnergy(fd, dramEnergyStatus, dramEnergyUnit, byteOrder)
+			energy.PSys = r.readEnergy(fd, psysEnergyStatus, cpuEnergyUnit, byteOrder)
+
+			if _, exists := measurement[core.Package]; !exists {
+				coreEnergy := make(map[int]Energy)
+				coreEnergy[core.Id] = energy
+				measurement[core.Package] = coreEnergy
+			} else {
+				measurement[core.Package][core.Id] = energy
 			}
 		}
 	}
-	return nil, nil
+	return measurement, nil
 }
 
 func (r *MsrReader) open(core Core) (int, error) {
