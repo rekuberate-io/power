@@ -12,13 +12,14 @@ type RaplReaderStrategy int
 
 const (
 	firstAvailable RaplReaderStrategy = iota
-	powercap                          // Reading the files under /sys/class/powercap/intel-rapl/intel-rapl:0 using the powercap interface. This requires no special permissions, and was introduced in Linux 3.13
+	sysfs                             // Reading the files under /sys/class/sysfs/intel-rapl/intel-rapl:0 using the sysfs interface. This requires no special permissions, and was introduced in Linux 3.13
 	perf_event                        // Using the perf_event interface with Linux 3.14 or newer. This requires root or a paranoid less than 1 (as do all system wide measurements with -a) sudo perf stat -a -e "power/energy-cores/" /bin/ls Available events can be found via perf list or under/sys/bus/event_source/devices/power/events/
 	msr                               // Using raw-access to the underlying MSRs under /dev/msr. This requires root.
 )
 
 var (
-	Cpus map[int]*Cpu
+	Cpus                             map[int]*Cpu
+	raplReaderStrategyNotImplemented error = errors.New("rapl reader strategy not implemented yet")
 )
 
 func init() {
@@ -51,17 +52,18 @@ func init() {
 type RaplReader interface {
 	Available() bool
 	Read() (Measurement, error)
+	measure() (Measurement, error)
 }
 
 func NewRaplReader(forceRaplReaderStrategyIfAvailable RaplReaderStrategy) (RaplReader, error) {
-	intelRaplReader := &PowerCap{}
+	sysfsRaplReader := &Sysfs{}
 	perfEventReader := &PerfEventReader{}
 	msrReader := &MsrReader{}
 
 	switch forceRaplReaderStrategyIfAvailable {
-	case powercap:
-		if intelRaplReader.Available() {
-			return intelRaplReader, nil
+	case sysfs:
+		if sysfsRaplReader.Available() {
+			return sysfsRaplReader, nil
 		}
 	case perf_event:
 		if perfEventReader.Available() {
@@ -72,8 +74,8 @@ func NewRaplReader(forceRaplReaderStrategyIfAvailable RaplReaderStrategy) (RaplR
 			return msrReader, nil
 		}
 	case firstAvailable:
-		if intelRaplReader.Available() {
-			return intelRaplReader, nil
+		if sysfsRaplReader.Available() {
+			return sysfsRaplReader, nil
 		} else if perfEventReader.Available() {
 			return perfEventReader, nil
 		} else if msrReader.Available() {
@@ -81,8 +83,8 @@ func NewRaplReader(forceRaplReaderStrategyIfAvailable RaplReaderStrategy) (RaplR
 		}
 	}
 
-	if intelRaplReader.Available() {
-		return intelRaplReader, nil
+	if sysfsRaplReader.Available() {
+		return sysfsRaplReader, nil
 	} else if perfEventReader.Available() {
 		return perfEventReader, nil
 	} else if msrReader.Available() {

@@ -91,16 +91,16 @@ func ReadStringFromFile(path string) (string, error) {
 
 // ParseBool parses a string into a boolean pointer.
 func ParseBool(b string) *bool {
-	var truth bool
+	var result bool
 	switch b {
 	case "enabled":
-		truth = true
+		result = true
 	case "disabled":
-		truth = false
+		result = false
 	default:
 		return nil
 	}
-	return &truth
+	return &result
 }
 
 func GetEndianness() (binary.ByteOrder, error) {

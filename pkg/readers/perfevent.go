@@ -21,5 +21,9 @@ func (r *PerfEventReader) Available() bool {
 }
 
 func (r *PerfEventReader) Read() (Measurement, error) {
-	return nil, nil
+	return nil, raplReaderStrategyNotImplemented
+}
+
+func (r *PerfEventReader) measure() (Measurement, error) {
+	return nil, raplReaderStrategyNotImplemented
 }
