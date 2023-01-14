@@ -160,7 +160,7 @@ func (r *MsrReader) read(fd int, offset int64, order binary.ByteOrder) (uint64, 
 func (r *MsrReader) readEnergy(fd int, offset int64, unit float64, order binary.ByteOrder) float64 {
 	result, err := r.read(fd, offset, order)
 	if err != nil {
-		klog.Errorf("reading offset: %d failed\n", offset, err)
+		klog.Errorf("reading offset: %d failed, %s", offset, err)
 		return 0
 	}
 
