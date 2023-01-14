@@ -150,7 +150,7 @@ func (r *MsrReader) read(fd int, offset int64, order binary.ByteOrder) (uint64, 
 	}
 
 	if bytes != chunkSize {
-		return 0, errors.New(fmt.Sprintf("wrong reading: %d", bytes))
+		return 0, errors.New(fmt.Sprintf("failed to read the register correct: %d", bytes))
 	}
 
 	result := order.Uint64(buffer)
